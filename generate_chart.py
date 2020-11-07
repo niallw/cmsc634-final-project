@@ -17,7 +17,19 @@ def check_intermediate_sample(arr):
     max_val = max(arr)
     total = sum(arr)
 
-    return (min_val >= 3 and max_val <= 39 and total < 97 and total > 61)
+    return (min_val > 3 and max_val < 39 and total < 97 and total > 61)
+
+def check_final_sample(arr):
+    # all differences between values in a set had to be greater than .1. 
+    for i in range(len(arr)):
+        cur_val = arr[i]
+        for j in range(len(arr)):
+            if j == i:
+                continue
+            other_val = arr[j % len(arr)]
+            if abs(cur_val - other_val) <= 0.1:
+                return False
+    return True
 
 def get_sample():
     values = np.random.uniform(3, 39, [4])
@@ -26,6 +38,11 @@ def get_sample():
         values = np.random.uniform(3, 39, [4])
     
     values = np.append(values, 100 - sum(values)) # add the 5th value
+    while not check_final_sample(values):
+        values = np.random.uniform(3, 39, [4])
+        while not check_intermediate_sample(values):
+            values = np.random.uniform(3, 39, [4])
+
     return values
 
 def generate_bar_chart(i, values):
@@ -63,9 +80,12 @@ def generate_answer_key(index, values):
 
     to_sort.sort(key = lambda x: x[1])
 
+    max_val = to_sort[-1][1]
+
     with open('{}_answers.txt'.format(index), 'w') as f:
         for t in to_sort:
-            f.write('{}: {}\n'.format(t[0], t[1]))
+            f.write('{} | Size: {} | Proportion: {}%\n'.format(t[0], t[1], t[1] / max_val * 100))
+            # f.write('{} | Size: {}\n'.format(t[0], t[1]))
     return to_sort
 
 def main():
