@@ -59,16 +59,43 @@ def generate_bar_chart(i, values):
     ax.set_ylim(ymax=40)
     ax.xaxis.set_tick_params(width=1.5)
     ax.yaxis.set_tick_params(width=1.5)
-    plt.savefig('{}_barchart.png'.format(i))
+   
+    # Marking the highest bar
+    # Label X for highest bar, blank for others
+    rects = ax.patches
+    labels = ["" for i in range(5)]
+    labels[np.argmax(values)] = "X"
+    
+    # Show labels at half the height of the bar
+    for rect, label in zip(rects, labels):
+        height = rect.get_height()
+        ax.text(rect.get_x() + rect.get_width() / 2, height//2, label,
+                ha='center', va='bottom', fontsize=16)
+    
+    plt.savefig('images/{}_barchart.png'.format(i))
     return plt
 
+
+
+def func(pct, allvals):
+    """
+    Function to create labels for wedges in Pie chart
+    """
+    # pct is not exactly same as max value due to float conversions, so checking the difference
+    if np.abs(np.max(allvals)-pct) < 0.0001:
+        return 'X'
+    else:
+        return ''
+    
 def generate_pie_chart(i, values):
     names = ['A', 'B', 'C', 'D', 'E']
 
     plt.rcParams['font.weight'] = 'bold'
     fig1, ax1 = plt.subplots()
-    ax1.pie(values, labels=names, colors=['white']*5, wedgeprops ={"edgecolor":"black",'linewidth':1.5, 'linestyle':'solid', 'antialiased': True})
-    plt.savefig('{}_piechart.png'.format(i))
+
+    # added autopct and textprops for labels
+    ax1.pie(values, labels=names, colors=['white']*5, autopct=lambda pct: func(pct, values), textprops={'fontsize': 16}, wedgeprops ={"edgecolor":"black",'linewidth':1.5, 'linestyle':'solid', 'antialiased': True})
+    plt.savefig('images/{}_piechart.png'.format(i))
     return plt
 
 def generate_answer_key(index, values):
@@ -82,7 +109,7 @@ def generate_answer_key(index, values):
 
     max_val = to_sort[-1][1]
 
-    with open('{}_answers.txt'.format(index), 'w') as f:
+    with open('images/{}_answers.txt'.format(index), 'w') as f:
         for t in to_sort:
             f.write('{} | Size: {} | Proportion: {}%\n'.format(t[0], t[1], t[1] / max_val * 100))
             # f.write('{} | Size: {}\n'.format(t[0], t[1]))
@@ -96,17 +123,22 @@ def main():
     else:
         shutil.rmtree('images')
         os.mkdir('images')
-    os.chdir(os.path.join(cur_dir, 'images'))
+
+    ## Added path to data folder in the save commands. Hence commenting chdir command
+    # os.chdir(os.path.join(cur_dir, 'images'))
         
     # Ten sets of five numbers that added to 100 were generated and each set was 
     # encoded by a bar chart and a pie chart, resulting in 20 graphs. 
     # For each graph, the answer sheet indicated which pie segment or bar was largest 
     # and sub- jects were asked to judge what percentage each of the other four values 
     # was of the maximum
-    for i in range(10):
+    # An extra set of images (marked 11) if for traning images in survey
+    for i in range(11):
         values = get_sample()
-        generate_bar_chart(i+1, values)
-        generate_pie_chart(i+1, values)
+        plt = generate_bar_chart(i+1, values)
+        plt.close() # Closing to avoid warning
+        plt = generate_pie_chart(i+1, values)
+        plt.close() # Closing to avoid warning
         generate_answer_key(i+1, values)
 
 if __name__ == "__main__":
