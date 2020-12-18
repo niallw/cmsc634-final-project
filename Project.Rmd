@@ -1,0 +1,98 @@
+---
+title: "Project"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+#df <- read_csv("SurveyResponsesGood - Sheet1.csv", col_names = c("StartDate"))
+df <- read.csv("Copy of SurveyResponsesGood - Sheet1.csv", stringsAsFactors = F)
+print(dim(df))
+print(nrow(df) == 54)
+print(ncol(df) == 113)
+df <- df[,-c(1:21,107:113)]
+df <- df[,-c(41:45)]
+
+dfGround <- read.csv("ground_truth.csv", stringsAsFactors = F)
+dfErr <- t(t(df) - dfGround[,3])
+dfLogAbs <- log2(abs(dfErr) + 1/8)
+```
+
+```{r}
+computeMidMean <- function(x, q = c(0.25, 0.75))
+{
+    quant <- quantile(x, q)
+    return(mean(x[x<=quant[2] & x>=quant[1]]))
+}
+```
+
+```{r}
+midMeans <- apply(dfLogAbs, 2, computeMidMean)
+dfMid <- data.frame(midMeans = midMeans, type = rep(c("Bar", "Pie"), each = 4, times = 10), ground = dfGround[,3])
+```
+
+#### Means of log absolute errors
+```{r}
+means <- dfMid %>% group_by(type) %>% summarise(LogMeanError=mean(midMeans))
+print(data.frame(means)[,2])
+```
+
+```{r}
+dfMid %>% ggplot(aes(ground, midMeans)) +
+    geom_point() +
+    geom_smooth(method=lm) + 
+    facet_wrap(~type)
+```
+
+```{r}
+dfMid %>% ggplot(aes(ground, midMeans)) +
+    geom_point() +
+    geom_smooth(method=loess) + 
+    facet_wrap(~type)
+```
+
+
+```{r}
+inds <- c(1:80)
+barVal <- dfLogAbs[,inds[inds%%8<=4 & inds%%8>0]]
+pieVal <- dfLogAbs[,inds[inds%%8>4 | inds%%8 == 0]]
+
+print(t.test(pieVal, barVal, paired = T)[["p.value"]])
+
+qqnorm(barVal)
+qqline(barVal)
+
+qqnorm(pieVal)
+qqline(pieVal)
+```
+```{r}
+print(wilcox.test(pieVal, barVal, paired = T)[["p.value"]])
+```
+
+#### Bootstrap
+```{r warning=F, message=F}
+bootstrapRep <- function(df)
+{
+    inds <- sample(1:nrow(df), replace = T, size = nrow(df))
+    midMeans <- apply(df[inds,], 2, computeMidMean)
+    dfMid <- data.frame(midMeans = midMeans, type = rep(c("Bar", "Pie"), each = 4, times = 10), ground = dfGround[,3])
+    means <- dfMid %>% group_by(type) %>% summarise(LogMeanError=mean(midMeans))
+    return(data.frame(means)[,2])
+}
+
+N <- 1000
+meanRange <- data.frame(Bar = rep(0,N),Pie = rep(0,N))
+for(i in seq(N))
+    meanRange[i,] <- bootstrapRep(dfLogAbs)
+
+barCI <- quantile(sort(meanRange[,1]), c(0.025, 0.975))
+pieCI <- quantile(sort(meanRange[,2]), c(0.025, 0.975))
+print(data.frame(means)[,2])
+print(barCI)
+print(pieCI)
+```
+
